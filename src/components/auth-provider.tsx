@@ -1,10 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 // Create a context to hold the authentication state
 const AuthContext = React.createContext<{ user: User | null }>({ user: null });
@@ -15,9 +16,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = React.useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
 
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      // Check if user is authorized
+      if (currentUser && currentUser.email !== 'inno.inkin@gmail.com') {
+        // Unauthorized user - sign them out
+        toast({
+          variant: 'destructive',
+          title: 'Access Denied',
+          description: 'You are not authorized to access this application.',
+        });
+        await signOut(auth);
+        setUser(null);
+        setLoading(false);
+        router.push('/login');
+        return;
+      }
+
       setUser(currentUser);
       setLoading(false);
 
@@ -33,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, [router, toast]); // Added toast to dependencies
 
   if (loading) {
     return (

@@ -241,7 +241,15 @@ export default function TimelineGrid({ initialServices }: { initialServices: Ser
         <div className="flex-shrink-0" style={{ flexBasis: '150px' }}>
           <div className="h-24 p-2 flex items-center justify-center font-semibold border-b border-r sticky top-0 bg-card z-20">Week</div>
           {weeksToRender.map((week) => {
-            const isCurrentWeek = isSameWeek(today, week.startDate, { weekStartsOn: 1 });
+            // Check if current week overlaps with this week's range
+            const weekStart = week.startDate;
+            const weekEnd = addDays(week.startDate, 6);
+            const todayStart = startOfWeek(today, { weekStartsOn: 1 });
+            const todayEnd = addDays(todayStart, 6);
+            
+            // Check if there's any overlap between the ranges
+            const isCurrentWeek = (weekStart <= todayEnd && weekEnd >= todayStart);
+            
             return (
               <div
                 key={week.startDate.toISOString()}
@@ -262,6 +270,15 @@ export default function TimelineGrid({ initialServices }: { initialServices: Ser
                 <ServiceColumnHeader service={service} onUpdate={handleUpdateService} onDelete={handleDeleteService} />
               </div>
               {weeksToRender.map((week) => {
+                // Check if current week overlaps with this week's range
+                const weekStart = week.startDate;
+                const weekEnd = addDays(week.startDate, 6);
+                const todayStart = startOfWeek(today, { weekStartsOn: 1 });
+                const todayEnd = addDays(todayStart, 6);
+                
+                // Check if there's any overlap between the ranges
+                const isCurrentWeek = (weekStart <= todayEnd && weekEnd >= todayStart);
+                
                 const weekDates = eachDayOfInterval({start: week.startDate, end: addDays(week.startDate, 6)});
                 const cellEvents = weekDates.flatMap(date => {
                     const dateString = format(date, 'yyyy-MM-dd');
@@ -271,7 +288,7 @@ export default function TimelineGrid({ initialServices }: { initialServices: Ser
                 return (
                   <div
                     key={week.startDate.toISOString()}
-                    className="h-24 p-1 border-b border-r cursor-pointer hover:bg-primary/5"
+                    className={cn('h-24 p-1 border-b border-r cursor-pointer hover:bg-primary/5', isCurrentWeek && 'bg-green-100/50 dark:bg-green-900/30')}
                     onClick={() => openModal(format(week.startDate, 'yyyy-MM-dd'), service.id)}
                   >
                     {cellEvents.map(event => <EventCard key={event.id} event={event} />)}
