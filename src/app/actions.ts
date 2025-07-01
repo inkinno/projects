@@ -7,10 +7,13 @@ import {
   getDocs,
   updateDoc,
   doc,
+  deleteDoc,
   query,
+  where,
   orderBy,
   serverTimestamp,
 } from 'firebase/firestore';
+import { format } from 'date-fns'; // Import the 'format' function
 import { db } from '@/lib/firebase';
 import type { Service, TimelineEvent } from '@/lib/types';
 import { highlightRelevantEvents } from '@/ai/flows/highlight-relevant-events';
@@ -67,9 +70,36 @@ export async function updateService(
   }
 }
 
-export async function getEvents(): Promise<TimelineEvent[]> {
+export async function deleteService(id: string) {
   try {
-    const q = query(eventsCollection, orderBy('createdAt', 'desc'));
+    const serviceDoc = doc(db, 'services', id);
+    await deleteDoc(serviceDoc);
+    const q = query(eventsCollection, where('serviceId', '==', id));
+    const eventSnapshot = await getDocs(q);
+    const deletePromises = eventSnapshot.docs.map(eventDoc => deleteDoc(eventDoc.ref));
+    await Promise.all(deletePromises);
+    
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting service:', error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function getEvents(
+  startDate?: Date,
+  endDate?: Date
+): Promise<TimelineEvent[]> {
+  try {
+    let q = query(eventsCollection);
+    if (startDate && endDate) {
+      const startString = format(startDate, 'yyyy-MM-dd');
+      const endString = format(endDate, 'yyyy-MM-dd');
+      q = query(eventsCollection, where('date', '>=', startString), where('date', '<=', endString), orderBy('date', 'asc'));
+    } else {
+      q = query(eventsCollection, orderBy('createdAt', 'desc'));
+    }
     const snapshot = await getDocs(q);
     if (snapshot.empty) {
       return [];
@@ -84,14 +114,13 @@ export async function getEvents(): Promise<TimelineEvent[]> {
 }
 
 export async function addEvent(data: {
-  serviceId: string;
-  date: string; // YYYY-MM-DD
-  content: string;
+ serviceId: string;
+ date: string; 
+ title: string;
+ content: string;
 }) {
   try {
-    if (!data.content.trim()) {
-      throw new Error("Event content cannot be empty.");
-    }
+    if (!data.title.trim()) throw new Error("Event title cannot be empty.");
     
     const aiResult = await highlightRelevantEvents({ eventData: data.content });
 

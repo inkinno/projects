@@ -5,16 +5,20 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
+import { Loader2 } from 'lucide-react';
 
 import type { Service } from '@/lib/types';
+import { addEvent } from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
+
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import {
   Form,
@@ -24,20 +28,20 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { addEvent } from '@/app/actions';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
 
 interface AddEventModalProps {
   isOpen: boolean;
   onClose: () => void;
-  date: string;
+  date: string; // This is the date determined by the grid cell click
   serviceId: string;
   services: Service[];
 }
 
+// The schema no longer needs to validate the date, as it's not an input.
 const eventSchema = z.object({
+  title: z.string().min(1, 'Event title is required.'),
   content: z.string().min(3, 'Event details must be at least 3 characters.'),
 });
 
@@ -53,18 +57,31 @@ export function AddEventModal({
   const form = useForm<z.infer<typeof eventSchema>>({
     resolver: zodResolver(eventSchema),
     defaultValues: {
+      title: '',
       content: '',
     },
   });
-  
+
+  // Reset form when the modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        title: '',
+        content: '',
+      });
+    }
+  }, [isOpen, form]);
+
   const service = services.find((s) => s.id === serviceId);
 
   const onSubmit = async (values: z.infer<typeof eventSchema>) => {
     setIsSubmitting(true);
     try {
+      // The 'date' is now passed directly from the props, not the form values.
       const result = await addEvent({
         serviceId,
-        date,
+        date: date,
+        title: values.title,
         content: values.content,
       });
 
@@ -110,6 +127,20 @@ export function AddEventModal({
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Event Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter event title" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {/* The date input FormField has been removed */}
+            <FormField
+              control={form.control}
               name="content"
               render={({ field }) => (
                 <FormItem>
@@ -127,11 +158,18 @@ export function AddEventModal({
               )}
             />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isSubmitting}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Save Event
               </Button>
             </DialogFooter>
