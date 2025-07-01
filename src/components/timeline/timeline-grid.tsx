@@ -26,6 +26,7 @@ import {
   updateService,
 } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/auth-provider'; // Import useAuth
 import { EventCard } from './event-card';
 import { AddEventModal } from './add-event-modal';
 import {
@@ -128,6 +129,7 @@ function ServiceColumnHeader({ service, onUpdate, onDelete }: { service: Service
 
 export default function TimelineGrid({ initialServices }: { initialServices: Service[] }) {
   const { toast } = useToast();
+  const { user } = useAuth(); // Get user from auth context
   const [services, setServices] = React.useState(initialServices);
   const [events, setEvents] = React.useState<TimelineEvent[]>([]);
   const [isFetching, setIsFetching] = React.useState(true);
@@ -140,15 +142,16 @@ export default function TimelineGrid({ initialServices }: { initialServices: Ser
   });
 
   const fetchAndSetServices = async () => {
+    if (!user) return; // Don't fetch if user is not logged in
     const updatedServices = await getServices();
     setServices(updatedServices);
   };
 
   const handleAddService = async () => {
     const result = await addService();
-    if (result.success) {
+    if (result.success && result.newService) {
       toast({ title: 'Service Added' });
-      await fetchAndSetServices();
+      setServices(prevServices => [...prevServices, result.newService as Service]);
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to add a new service.' });
     }
@@ -157,15 +160,21 @@ export default function TimelineGrid({ initialServices }: { initialServices: Ser
   const handleUpdateService = () => fetchAndSetServices();
   const handleDeleteService = () => fetchAndSetServices();
 
+  // Fetch services when the component mounts and user is available
+  React.useEffect(() => {
+    fetchAndSetServices();
+  }, [user]);
+
   React.useEffect(() => {
     const fetchEvents = async () => {
+      if (!user) return; // Don't fetch if user is not logged in
       setIsFetching(true);
       const fetchedEvents = await getEvents(currentDateRange.start, currentDateRange.end);
       setEvents(fetchedEvents);
       setIsFetching(false);
     };
     fetchEvents();
-  }, [currentDateRange]);
+  }, [currentDateRange, user]);
 
   React.useEffect(() => {
     if (!isFetching && currentWeekRef.current) {
@@ -201,6 +210,15 @@ export default function TimelineGrid({ initialServices }: { initialServices: Ser
       end: direction === 'next' ? addMonths(prevRange.end, 3) : prevRange.end,
     }));
   };
+
+  // Display a loader while fetching initial data
+  if (isFetching && services.length === 0) {
+    return (
+        <div className="flex h-full w-full items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    );
+  }
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">

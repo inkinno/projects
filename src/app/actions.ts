@@ -42,13 +42,17 @@ export async function addService() {
     const services = await getServices();
     const newOrder = services.length > 0 ? Math.max(...services.map(s => s.order)) + 1 : 0;
     
-    await addDoc(servicesCollection, {
+    const newServiceData = {
       name: 'New Service',
       emoji: '🚀',
       order: newOrder,
-    });
+    };
+
+    const docRef = await addDoc(servicesCollection, newServiceData);
+    
     revalidatePath('/');
-    return { success: true };
+    
+    return { success: true, newService: { id: docRef.id, ...newServiceData } };
   } catch (error) {
     console.error('Error adding service:', error);
     return { success: false, error: (error as Error).message };

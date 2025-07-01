@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
       setLoading(false);
 
-      const isLoginPage = pathname === '/login';
+      const isLoginPage = window.location.pathname === '/login';
 
       if (!currentUser && !isLoginPage) {
         // If the user is not logged in and not on the login page, redirect them.
@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [pathname, router]);
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   if (loading) {
     return (
