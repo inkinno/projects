@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
       setLoading(false);
 
-      const isLoginPage = window.location.pathname === '/login';
+      const isLoginPage = pathname === '/login';
 
       if (!currentUser && !isLoginPage) {
         // If the user is not logged in and not on the login page, redirect them.
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [router, toast]); // Added toast to dependencies
+  }, [router, pathname, toast]);
 
   if (loading) {
     return (
